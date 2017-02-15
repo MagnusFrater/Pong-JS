@@ -38,7 +38,8 @@ window.onload = function() {
 
 	canvas.addEventListener('mousemove', function(evt) {
 		var mousePos = calcMousePos(evt);
-		p1Y = mousePos.y - (pHeight / 2);
+
+		p1Movement(mousePos);
 	}, false);
 
 	newGame();
@@ -74,24 +75,22 @@ function newGame () {
 	p2Score = 0;
 
 	// ready
-	reset();
+	resetBall();
 }
 
-// resets game data after every point won/lost
-function reset () {
+// resets ball
+function resetBall () {
 	// ball
 	bX = (canvas.width / 2) - (bSize / 2);
 	bY = getRandInt(20, canvas.height - 20);
-	bSpeedX = 2 * ((getRandInt(0,1) == 0)? -1 : 1);
-	bSpeedY = 2 * ((getRandInt(0,1) == 0)? -1 : 1);
+	bSpeedX = 1.2 * ((getRandInt(0,1) == 0)? -1 : 1);
+	bSpeedY = 1.2 * ((getRandInt(0,1) == 0)? -1 : 1);
 }
 
 // updates all game data
 function tick () {
 	// ball
 	ballMovement();
-
-	p1Movement();
 
 	// player 2
 	p2Movement();
@@ -117,9 +116,11 @@ function draw () {
 
 	// player 1
 	canvasContext.fillRect(p1X, p1Y, pWidth, pHeight);
+	canvasContext.fillText(p1Score, 100,100, 100);
 
 	// player 2
 	canvasContext.fillRect(p2X, p2Y, pWidth, pHeight);
+	canvasContext.fillText(p2Score, 200,200, 100);
 }
 
 // game object collisions
@@ -129,58 +130,179 @@ function ballMovement () {
 	for (i=0; i<Math.abs(bSpeedY); i++) {
 		// up
 		if (bSpeedY < 0) {
+			// ball-p1_bottom collision
+			
+			// check if ball shares at least 1 column of pixels with p1
+			var ballWithinP1Bounds = ((bX >= p1X) && (bX <= p1X + pWidth)) || ((bX + bSize <= p1X + pWidth) && (bX + bSize >= p1X));
+			
+			// check for ball-p1 collision 1 step in the future
+			var p1Collision = collideUp(bY, p1Y + pHeight, 1) && ballWithinP1Bounds;
+
+			// don't act on collision if ball isn't below p1
+			var ballBelowP1 = (bY >= p1Y + pHeight);
+			
+			if (p1Collision && ballBelowP1) {
+				bSpeedY *= -1;
+
+				break;
+			}
+
+			// ball-p2_bottom collision
+
+			// check if ball shares at least 1 column of pixels with p2
+			var ballWithinP2Bounds = ((bX >= p2X) && (bX <= p2X + pWidth)) || ((bX + bSize <= p2X + pWidth) && (bX + bSize >= p2X));
+
+			// check for ball-p2 collision 1 step in the future
+			var p2Collision = collideUp(bY, p2Y + pHeight, 1) && ballWithinP2Bounds;
+
+			// don't act on collision if ball isn't below p2
+			var ballBelowP2 = (bY >= p2Y + pHeight);
+
+			if (p2Collision && ballBelowP2) {
+				bSpeedY *= -1;
+
+				break;
+			}
+
+			// check for ball-ceiling collision 1 step in the future
 			var ceilingCollision = collideUp(bY, 0, 1);
 
 			if (ceilingCollision) {
 				bSpeedY *= -1;
+
+				break;
 			}
 		}
 
 		// down
-		if (bSpeedY > 0) {			
+		if (bSpeedY > 0) {
+			// ball-p1_top collision
+
+			// check if ball shares at least 1 column of pixels with p1
+			var ballWithinP1Bounds = ((bX >= p1X) && (bX <= p1X + pWidth)) || ((bX + bSize <= p1X + pWidth) && (bX + bSize >= p1X));
+
+			// check for ball-p1 collision 1 step in the future
+			var p1Collision = collideDown(bY + bSize, p1Y, 1) && ballWithinP1Bounds;
+
+			// don't act on collision if ball isn't above p1
+			var ballAboveP1 = (bY + bSize <= p1Y);
+
+			if (p1Collision && ballAboveP1) {
+				bSpeedY *= -1;
+
+				break;
+			}
+
+			// ball-p2_top collision
+
+			// check if ball shares at least 1 column of pixels with p2
+			var ballWithinP2Bounds = ((bX >= p2X) && (bX <= p2X + pWidth)) || ((bX + bSize <= p2X + pWidth) && (bX + bSize >= p2X));
+
+			// check for ball-p2 collision 1 step in the future
+			var p2Collision = collideDown(bY + bSize, p2Y, 1) && ballWithinP2Bounds;
+
+			// don't act on collision if ball isn't above p2
+			var ballAboveP2 = (bY + bSize <= p2Y);
+
+			if (p2Collision && ballAboveP2) {
+				bSpeedY *= -1;
+
+				break;
+			}
+
+			// check for ball-floor collision 1 step in the future
 			var floorCollision = collideDown(bY + bSize, canvas.height, 1);
 
 			if (floorCollision) {
 				bSpeedY *= -1;
+
+				break;
 			}
 		}
-
-		bY += bSpeedY;
+		
+		if (bSpeedY > 0) {
+			bY += 1;
+		} else {
+			bY -= 1;
+		}
 	}
 
 	// horizontal collisions
 	for (i=0; i<Math.abs(bSpeedX); i++) {
 		// left
 		if (bSpeedX < 0) {
+			// check if ball shares at least 1 row of pixels with p1
+			var ballWithinP1Bounds = ((bY >= p1Y) && (bY <= p1Y + pHeight)) || ((bY + bSize <= p1Y + pHeight) && (bY + bSize >= p1Y));
+			
+			// check for ball-p1 collision 1 step in the future
+			var p1Collision = collideLeft(bX, p1X + pWidth, 1) && ballWithinP1Bounds;
+			
+			// don't act on collision if the left of the ball is past the right of p1
+			var ballLeftPastP1Right = (bX < p1X + pWidth);
+
+			if (p1Collision && !ballLeftPastP1Right) {
+				bSpeedX *= -1;
+				break;
+			}
+			
+			// check for ball-left wall collision 1 step in the future
 			var leftWallCollision = collideLeft(bX, 0, 1);
 
 			if (leftWallCollision) {
 				p2Score++;
 	
-				reset();
+				resetBall();
+
+				break;
 			}
 		}
 
 		// right
 		if (bSpeedX > 0) {
+			// check if ball shares at least 1 row of pixels with p2
+			var ballWithinP2Bounds = ((bY >= p2Y) && (bY <= p2Y + pHeight)) || ((bY + bSize <= p2Y + pHeight) && (bY + bSize >= p2Y));
+			
+			// check for ball-p2 collision 1 step in the future
+			var p2Collision = collideRight(bX + bSize, p2X, 1) && ballWithinP2Bounds;
+
+			// don't act on collision if the right of the ball is past the left of p2
+			var ballRightPastP2Left = (bX + bSize > p2X);
+
+			if (p2Collision && !ballRightPastP2Left) {
+				bSpeedX *= -1;
+
+				break;
+			}
+
+			// check for ball-right wall collision 1 step in the future
 			var rightWallCollision = collideRight(bX + bSize, canvas.width, 1);
 
 			if (rightWallCollision) {
 				p1Score++;
 
-				reset();
+				resetBall();
+
+				break;
 			}
 		}
 		
-		bX += bSpeedX;
+		if (bSpeedX > 0) {
+			bX += 1;
+		} else {
+			bX -= 1;
+		}
 	}
 }
 
-function p1Movement () {
+function p1Movement (mousePos) {
+	p1Y = mousePos.y - (pHeight / 2);
+	
+	// p1 should never be above ceiling
 	if (p1Y < 0) {
 		p1Y = 0;
 	}
-
+	
+	// p1 should never be below floor
 	if (p1Y + pHeight > canvas.height) {
 		p1Y = canvas.height - pHeight;
 	}
@@ -193,10 +315,13 @@ function p2Movement () {
 	// up
 	if (bVerticalCenter < p2VerticalCenter) {
 		for (i=0; i<Math.abs(p2Speed); i++) {
+			// check for p2-ceiling collision 1 step in the future
 			var ceilingCollision = collideUp(p2Y, 0, 1);
 
 			if (!ceilingCollision) {
-				p2Y -= p2Speed;
+				p2Y -= 1;
+			} else {
+				break;
 			}
 		}
 	}
@@ -204,10 +329,13 @@ function p2Movement () {
 	// down
 	if (bVerticalCenter > p2VerticalCenter) {
 		for (i=0; i<Math.abs(p2Speed); i++) {
+			// check for p2-floor collision 1 step in the future
 			var floorCollision = collideDown(p2Y + pHeight, canvas.height, 1);
 
 			if (!floorCollision) {
-				p2Y += p2Speed;
+				p2Y += 1;
+			} else {
+				break;
 			}
 		}
 	}
