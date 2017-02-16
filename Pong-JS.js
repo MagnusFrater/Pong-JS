@@ -5,6 +5,9 @@ var canvasContext;
 // settings
 const DESIRED_UPS = 60;
 
+var gameState;
+const WIN_AMOUNT = 10;
+
 // ball
 var bSize;
 var bX;
@@ -42,12 +45,15 @@ window.onload = function() {
 		p1Movement(mousePos);
 	}, false);
 
-	newGame();
+	canvas.addEventListener('mousedown', handleMouseDown);
 
 	setInterval(function() {
 		tick();
 		draw();
 	}, (1000 / DESIRED_UPS));
+
+	// settings
+	gameState = "TITLE";
 }
 
 // starts fresh game
@@ -70,60 +76,115 @@ function newGame () {
 	// player 2
 	p2X = canvas.width - pHorizontalOffset - pWidth;
 	p2Y = (canvas.height / 2) - (pHeight / 2);
-	p2Speed = 1.7;
+	p2Speed = 5;
 
 	p2Score = 0;
 
 	// ready
 	resetBall();
+
+	// settings
+	gameState = "INGAME";
 }
 
 // resets ball
 function resetBall () {
+	// settings
+	if (p1Score >= WIN_AMOUNT || p2Score >= WIN_AMOUNT) {
+		gameState = "GAMEOVER";
+	}
+
 	// ball
 	bX = (canvas.width / 2) - (bSize / 2);
 	bY = getRandInt(20, canvas.height - 20);
-	bSpeedX = 1.2 * ((getRandInt(0,1) == 0)? -1 : 1);
-	bSpeedY = 1.2 * ((getRandInt(0,1) == 0)? -1 : 1);
+	bSpeedX = 5 * ((getRandInt(0,1) == 0)? -1 : 1);
+	bSpeedY = 5 * ((getRandInt(0,1) == 0)? -1 : 1);
 }
 
 // updates all game data
 function tick () {
-	// ball
-	ballMovement();
+	if (gameState.valueOf() == "INGAME") {
+		// ball
+		ballMovement();
 
-	// player 2
-	p2Movement();
+		// player 2
+		p2Movement();
+	}
 }
 
 // renders to the canvas
 function draw () {
 	canvasContext.fillStyle = 'black';
 	canvasContext.fillRect(0, 0, canvas.width, canvas.height);
-
-	canvasContext.fillStyle = 'white';
-
-	// net
-	var dashWidth = 3;
-	var dashHeight = 25;
-
-	for (i=0; i<11; i++) {
-		canvasContext.fillRect((canvas.width / 2) - (dashWidth / 2), 2 * (dashHeight * i) + (1.5 * dashHeight), dashWidth, dashHeight);
-	}
 	
-	// ball
-	canvasContext.fillRect(bX, bY, bSize, bSize);
+	canvasContext.fillStyle = 'white';
+	
+	// TESTING
+	//canvasContext.fillRect(canvas.width / 2, 0, 1, canvas.height);
+	//canvasContext.fillRect(0, canvas.height / 2, canvas.width, 1);
+	// TESTING
 
-	// player 1
-	canvasContext.fillRect(p1X, p1Y, pWidth, pHeight);
-	canvasContext.fillText(p1Score, 100,100, 100);
+	if (gameState.valueOf() == "TITLE") {
+		canvasContext.font = "150px Verdana";
+		canvasContext.fillText("PONG", (canvas.width / 5) + 30, (canvas.height / 5 * 2));
 
-	// player 2
-	canvasContext.fillRect(p2X, p2Y, pWidth, pHeight);
-	canvasContext.fillText(p2Score, 200,200, 100);
+		canvasContext.fillRect(250, 275, canvas.width - 500, 10);
+
+		canvasContext.font = "70px Verdana";
+		canvasContext.fillText("PLAY", (canvas.width / 3) + 50, (canvas.height * (4/5)));
+	}
+
+	if (gameState.valueOf() == "INGAME") {
+		
+		// net
+		var dashWidth = 3;
+		var dashHeight = 25;
+
+		for (i=0; i<11; i++) {
+			canvasContext.fillRect((canvas.width / 2) - (dashWidth / 2), 2 * (dashHeight * i) + (1.5 * dashHeight), dashWidth, dashHeight);
+		}
+	
+		// ball
+		canvasContext.fillRect(bX, bY, bSize, bSize);
+
+		// player 1
+		canvasContext.fillRect(p1X, p1Y, pWidth, pHeight);
+
+		canvasContext.font = "70px Verdana";
+		canvasContext.fillText(p1Score, 180, 80);
+
+		// player 2
+		canvasContext.fillRect(p2X, p2Y, pWidth, pHeight);
+
+		canvasContext.font = "70px Verdana";
+		canvasContext.fillText(p2Score, canvas.width - 220, 80);
+	}
+
+	if (gameState.valueOf() == "GAMEOVER") {
+		canvasContext.font = "75px Verdana";
+		
+		if (p1Score > p2Score) {
+			canvasContext.fillText("P1 WINS!", 100, 200);
+		} else {
+			canvasContext.fillText("P2 WINS!", 100, 200);
+		}
+
+		canvasContext.fillText("CONTINUE", (canvas.width / 2) - 100, (canvas.height * (4/5)));
+	}
 }
 
-// game object collisions
+// triggered when mouse is clicked
+function handleMouseDown (evt) {
+	if (gameState.valueOf() == "TITLE") {
+		newGame();
+	}
+
+	if (gameState.valueOf() == "GAMEOVER") {
+		gameState = "TITLE";
+	}
+}
+
+// game object collisions/movement
 
 function ballMovement () {
 	// vertical collisions
@@ -242,11 +303,15 @@ function ballMovement () {
 
 			if (p1Collision && !ballLeftPastP1Right) {
 				bSpeedX *= -1;
+
+				var deltaY = bY - (p1Y + (pHeight / 2));
+				bSpeedY = deltaY * 0.27;
+
 				break;
 			}
 			
-			// check for ball-left wall collision 1 step in the future
-			var leftWallCollision = collideLeft(bX, 0, 1);
+			// check for ball-left_wall collision 1 step in the future
+			var leftWallCollision = collideLeft(bX + bSize, 0, 1);
 
 			if (leftWallCollision) {
 				p2Score++;
@@ -271,11 +336,14 @@ function ballMovement () {
 			if (p2Collision && !ballRightPastP2Left) {
 				bSpeedX *= -1;
 
+				var deltaY = bY - (p2Y + (pHeight / 2));
+				bSpeed = deltaY * 0.27;
+	
 				break;
 			}
 
-			// check for ball-right wall collision 1 step in the future
-			var rightWallCollision = collideRight(bX + bSize, canvas.width, 1);
+			// check for ball-right_wall collision 1 step in the future
+			var rightWallCollision = collideRight(bX, canvas.width, 1);
 
 			if (rightWallCollision) {
 				p1Score++;
@@ -323,6 +391,14 @@ function p2Movement () {
 			} else {
 				break;
 			}
+
+			// stop moving up if center is past ball_center
+			bVerticalCenter = bY + (bSize / 2);
+			p2VerticalCenter = p2Y + (pHeight / 2);
+
+			if (p2VerticalCenter <= bVerticalCenter) {
+				break;
+			}
 		}
 	}
 
@@ -335,6 +411,14 @@ function p2Movement () {
 			if (!floorCollision) {
 				p2Y += 1;
 			} else {
+				break;
+			}
+
+			// stop moving down if center is past ball_center
+			bVerticalCenter = bY + (bSize / 2);
+			p2VerticalCenter = p2Y + (pHeight / 2);
+
+			if (p2VerticalCenter >= bVerticalCenter) {
 				break;
 			}
 		}
