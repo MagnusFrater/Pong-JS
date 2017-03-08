@@ -49,11 +49,12 @@ window.onload = function() {
 
 	setInterval(function() {
 		tick();
-		draw();
 	}, (1000 / DESIRED_UPS));
 
 	// settings
 	gameState = "TITLE";
+
+	draw();
 }
 
 // starts fresh game
@@ -171,6 +172,8 @@ function draw () {
 
 		canvasContext.fillText("CONTINUE", (canvas.width / 2) - 100, (canvas.height * (4/5)));
 	}
+
+	requestAnimationFrame(draw);
 }
 
 // triggered when mouse is clicked
